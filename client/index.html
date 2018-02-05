@@ -1,0 +1,49 @@
+<html>
+<head>
+    <title>Task</title>
+    <script src="/static/socket.io.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src="/static/main.js"></script>
+    <link rel="stylesheet" type="text/css" href="/static/main.css">
+</head>
+<body>
+     <div class="main">
+         <div class="buttons">
+             <div class="load">
+                 <div id="load-button" class="active">
+                     Load data
+                 </div>
+                 <label id="load-info"><label>
+             </div>
+             <div class="delete">
+                 <textarea id="area" class="area" rows=1 cols=3 maxlength=3>0</textarea>
+                 <div id="remove-button" class="active">
+                     % remove
+                 </div>
+             </div>
+             <div class="refresh">
+                 <div id="refresh" class="active">
+                     Refresh data
+                 </div>
+             </div>
+         </div>
+         <div class="buttons">
+             <div class="delete">
+                 <span> All events: </span> <label id="events"><label>
+             </div>
+             <div class="delete">
+                 <label>
+                     Page:
+                 </label>
+                 <textarea id="page" class="area" rows=1 cols=3 maxlength=3>0</textarea>
+             </div>
+             <div class="delete">
+                 <div id="go" class="active">
+                     Go to page
+                 </div>
+             </div>
+         </div>
+         <div class="json"></div>
+     </div>
+</body>
+</html>

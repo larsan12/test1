@@ -1,0 +1,39 @@
+.buttons {
+    width: 900px;
+    height: 200px;
+    border: 1px dotted black;
+    display: flex;
+    flex-direction: column;
+}
+
+.load, .delete, .refresh {
+    margin: 20px 40px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}
+
+#load-info {
+    margin-left: 5px;
+    color: red;
+}
+
+.area {
+    resize: none;
+}
+.active {
+    border: 1px dotted gray;
+    cursor: pointer;
+}
+
+.deactive {
+    border: 1px dotted gray;
+    background-color: gray;
+    cursor: default;
+}
+
+#load-button, #remove-button, #refresh, #go {
+    width: 100px;
+    height: 20px;
+    padding: 8px 8px;
+}

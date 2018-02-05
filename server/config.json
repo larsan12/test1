@@ -1,0 +1,8 @@
+{
+    "client": "pg",
+    "host" : "localhost",
+    "user" : "postgres",
+    "password" : "your_pass",
+    "database" : "postgres",
+    "port": 3001
+}
