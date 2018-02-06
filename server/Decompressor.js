@@ -123,15 +123,19 @@ class Decopressor {
             "event": "",
             "team1": "",
             "team2": ""
-        }
+        };
+
         result.event = {
             id: obj.id,
             date: obj.date,
-            team1: obj.teams && obj.teams.length && obj.teams[0].id,
-            team2: obj.teams && obj.teams.length > 1 && obj.teams[1].id,
+            team1_id: obj.teams && obj.teams.length && obj.teams[0].id,
+            team2_id: obj.teams && obj.teams.length > 1 && obj.teams[1].id,
+            team1_name: obj.teams && obj.teams.length && obj.teams[0].name,
+            team2_name: obj.teams && obj.teams.length > 1 && obj.teams[1].name,
             scores: obj.scores
-        }
-        if (!result.event.id || !result.event.team1 || !result.event.team2) {
+        };
+
+        if (!result.event.id || !result.event.team1_id || !result.event.team2_id) {
             result.event = null;
         }
 

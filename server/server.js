@@ -29,8 +29,10 @@ initializeDb = () => {
         if (!exists) {
             return knex.schema.createTable('events', t => {
                 t.integer('id').notNullable().primary();
-                t.integer('team1').unsigned().references('id').inTable('teams');
-                t.integer('team2').unsigned().references('id').inTable('teams');
+                t.integer('team1_id').unsigned().references('id').inTable('teams');
+                t.integer('team2_id').unsigned().references('id').inTable('teams');
+                t.string('team1_name');
+                t.string('team2_name');
                 t.string('scores');
                 t.timestamp('date');
             });
@@ -66,42 +68,35 @@ initializeDb().then(() => {
 
         socket.on('getTenEvents', () => {
             // function to ignore dublicate key error
-            let insertToPromise = (obj, table) => {
-                let promise = obj ? knex(table).insert(obj) : Promise.resolve();
-                promise = promise.catch(err => {
-                    if (err.message.indexOf("duplicate key value violates unique constraint") !== -1) {
-                        return Promise.resolve();
-                    } else {
-                        throw err;
-                    }
-                })
-                return promise;
-            }
+            let ignoreDublicateError = (data, table) => {
+                let sqlString = knex.insert(data).into(table).toString() + " \n ON CONFLICT (id) DO NOTHING";
+                return knex.raw(sqlString);
+            };
+
+            let events = [];
 
             for (let i = 1; i < 11; i++) {
                 chain = chain.then(obj => decompressor.parseEvent().then(obj => {
                     let objects = decompressor.validate(obj);
-                    chainDb = chainDb.then(() => {
-                        //save in Db
-                        return Promise.all([
-                            insertToPromise(objects.team1, "teams"),
-                            insertToPromise(objects.team2, "teams")
-                        ])
-                        .then(res => insertToPromise(objects.event, "events"))
-                        .catch(err => {
-                            console.error("Error in chainDb: " + err.message);
-                            return Promise.resolve();
-                        })
-                    });
+                    events.push(objects);
                     socket.emit('eventsLoaded', { number: i });
                 }))
                 .catch(err => {
                     console.error("Error in chain: " + err);
                     return Promise.resolve();
                 })
-            }
+            };
+
             chain = chain.then(() => {
                 chainDb = chainDb.then(() => {
+                    //save in Db
+                    return ignoreDublicateError(events.reduce((prev, curr) => [...prev, curr.team1, curr.team2], []).filter(t => t), "teams")
+                        .then(res => ignoreDublicateError(events.map(e => e.event).filter(t => t), "events"))
+                        .catch(err => {
+                            console.error("Error in chainDb: " + err.message);
+                            return Promise.resolve();
+                        })
+                }).then(() => {
                     io.emit("dbUpdated")
                 });
                 return Promise.resolve();
@@ -121,8 +116,8 @@ initializeDb().then(() => {
         knex('events').count('*').then(r => {
             numberEvents = r[0].count;
             let sqlString = `SELECT e.id,
-                (select t.name from teams t where t.id = e.team1) as team1,
-                (select t.name from teams t where t.id = e.team2) as team2,
+                e.team1_name as team1,
+                e.team2_name as team2,
                 e.scores,
                 e.date
                 FROM events e
@@ -148,7 +143,6 @@ initializeDb().then(() => {
     });
 
     /*
-
         /remove_data - удалить body.percentage - % случайных эвентов
     */
 
@@ -163,8 +157,8 @@ initializeDb().then(() => {
                 let sqlString = `
                 DELETE FROM events
                 WHERE id in (
-                    select id from events order by ` + rand + ' limit '+ numberEvents +' )'
-                return knex.raw(sqlString)
+                    select id from events order by ? limit ? )`;
+                return knex.raw(sqlString, [rand, numberEvents])
             })
             .then(() => res.status(200).send({
                 deleted: numberEvents
