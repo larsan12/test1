@@ -29,12 +29,18 @@ initializeDb = () => {
         if (!exists) {
             return knex.schema.createTable('events', t => {
                 t.integer('id').notNullable().primary();
-                t.integer('team1_id').unsigned().references('id').inTable('teams');
-                t.integer('team2_id').unsigned().references('id').inTable('teams');
-                t.string('team1_name');
-                t.string('team2_name');
                 t.string('scores');
                 t.timestamp('date');
+            });
+        }
+    }))
+    .then(() => knex.schema.hasTable('teamsInEvent').then(exists => {
+        if (!exists) {
+            return knex.schema.createTable('teamsInEvent', t => {
+                t.integer('event_id').unsigned().references('id').inTable('events').onDelete('CASCADE');
+                t.integer('team_id').unsigned().references('id').inTable('teams').onDelete('CASCADE');
+                t.unique(['event_id', 'team_id']);
+                t.string('team_name');
             });
         }
     }))
@@ -69,20 +75,32 @@ initializeDb().then(() => {
         socket.on('getTenEvents', () => {
             // function to ignore dublicate key error
             let ignoreDublicateError = (data, table) => {
-                let sqlString = knex.insert(data).into(table).toString() + " \n ON CONFLICT (id) DO NOTHING";
+                let onConflict = " \n ON CONFLICT (id) DO NOTHING";
+                if (table === "teamsInEvent" ) {
+                    onConflict = " \n ON CONFLICT (event_id, team_id) DO NOTHING"
+                }
+                let sqlString = knex.insert(data).into(table).toString() + onConflict;
                 return knex.raw(sqlString);
             };
 
-            let events = [];
+            let events = {
+                teams: [],
+                events: [],
+                teamsInEvent: []
+            };
 
             for (let i = 1; i < 11; i++) {
                 chain = chain.then(obj => decompressor.parseEvent().then(obj => {
                     let objects = decompressor.validate(obj);
-                    events.push(objects);
+                    events = {
+                        teams: events.teams.concat(objects.teams),
+                        events: events.events.concat(objects.events),
+                        teamsInEvent: events.teamsInEvent.concat(objects.teamsInEvent),
+                    }
                     socket.emit('eventsLoaded', { number: i });
                 }))
                 .catch(err => {
-                    console.error("Error in chain: " + err);
+                    console.error(err);
                     return Promise.resolve();
                 })
             };
@@ -90,8 +108,9 @@ initializeDb().then(() => {
             chain = chain.then(() => {
                 chainDb = chainDb.then(() => {
                     //save in Db
-                    return ignoreDublicateError(events.reduce((prev, curr) => [...prev, curr.team1, curr.team2], []).filter(t => t), "teams")
-                        .then(res => ignoreDublicateError(events.map(e => e.event).filter(t => t), "events"))
+                    return ignoreDublicateError(events.teams.filter(t => t), "teams")
+                        .then(res => ignoreDublicateError(events.events.filter(t => t), "events"))
+                        .then(res => ignoreDublicateError(events.teamsInEvent.filter(t => t), "teamsInEvent"))
                         .catch(err => {
                             console.error("Error in chainDb: " + err.message);
                             return Promise.resolve();
@@ -116,8 +135,7 @@ initializeDb().then(() => {
         knex('events').count('*').then(r => {
             numberEvents = r[0].count;
             let sqlString = `SELECT e.id,
-                e.team1_name as team1,
-                e.team2_name as team2,
+                (select array(SELECT team_name FROM "teamsInEvent" t WHERE t.event_id=e.id)) as teams,
                 e.scores,
                 e.date
                 FROM events e
@@ -130,12 +148,22 @@ initializeDb().then(() => {
             return knex.raw(sqlString)
         })
         .then(arr => {
+            let events = arr.rows ? arr.rows.map(e => {
+                if (e.teams.length >1) {
+                    e.team1 = e.teams[0];
+                    e.team2 = e.teams[1];
+                }
+
+                delete e.teams;
+                return e
+            }) : [];
             res.status(200).send({
                 numberEvents: numberEvents,
-                events: arr.rows
+                events: events
             })
         })
         .catch(err => {
+            console.log(err)
             res.status(500).send({
                 error: err.message
             })
@@ -163,9 +191,12 @@ initializeDb().then(() => {
             .then(() => res.status(200).send({
                 deleted: numberEvents
             }))
-            .catch(err => res.status(500).send({
-                error: err.message
-            }))
+            .catch(err => {
+                console.log(err);
+                res.status(500).send({
+                    error: err.message
+                })
+            })
         } else {
             res.status(500).send({
                 error: "wrong body parametr"

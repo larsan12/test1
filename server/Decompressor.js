@@ -122,40 +122,61 @@ class Decopressor {
         let result = {
             "event": "",
             "team1": "",
-            "team2": ""
+            "team2": "",
+            "events": [],
+            "teams": [],
+            "teamsInEvent": []
         };
 
         result.event = {
             id: obj.id,
             date: obj.date,
-            team1_id: obj.teams && obj.teams.length && obj.teams[0].id,
-            team2_id: obj.teams && obj.teams.length > 1 && obj.teams[1].id,
-            team1_name: obj.teams && obj.teams.length && obj.teams[0].name,
-            team2_name: obj.teams && obj.teams.length > 1 && obj.teams[1].name,
             scores: obj.scores
         };
 
-        if (!result.event.id || !result.event.team1_id || !result.event.team2_id) {
+        if (!result.event.id) {
             result.event = null;
-        }
+        } else {
+            result.events.push(result.event);
+        };
 
         if (obj.teams && obj.teams.length && obj.teams[0].id) {
             result.team1 = {
                 id: obj.teams[0].id,
                 location: obj.teams[0].location,
                 name: obj.teams[0].location,
+            };
+            result.teams.push(result.team1);
+            if (result.event) {
+                result.teamsInEvent.push({
+                    team_id: result.team1.id,
+                    event_id: result.event.id,
+                    team_name: result.team1.name
+                })
             }
-        }
+        };
 
         if (obj.teams && obj.teams.length > 1 && obj.teams[1].id) {
             result.team2 = {
                 id: obj.teams[1].id,
                 location: obj.teams[1].location,
                 name: obj.teams[1].location,
+            };
+            result.teams.push(result.team2);
+            if (result.event) {
+                result.teamsInEvent.push({
+                    team_id: result.team2.id,
+                    event_id: result.event.id,
+                    team_name: result.team2.name
+                })
             }
-        }
+        };
 
-        return result;
+        return {
+            events: result.events,
+            teams: result.teams,
+            teamsInEvent: result.teamsInEvent
+        };
 
     }
 
